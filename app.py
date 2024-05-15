@@ -25,6 +25,7 @@ def main():
     set_default_input_state(word)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
+        render_output_button()
         render_image()
         render_input_button()
 
@@ -68,12 +69,35 @@ def render_input_button():
                 if item["letter"] == "_":
                     columns[col_index].button(item["letter"], type="primary", key=button_id, disabled=True)
                 else:
-                    if columns[col_index].button(item["letter"], type="primary", key=button_id):
+                    output_underscore_count = count_underscores()
+                    if columns[col_index].button(item["letter"], type="primary", key=button_id) and output_underscore_count != 0:
+                        print(row_index)
+                        print(len(st.session_state.output_state))
                         st.session_state.input_state[index] = {"letter": "_", "index": 0}
                         handle_input_button(item, index)
 
 
+def render_output_button():
+    columns = st.columns(len(st.session_state.output_state))
+    for index, item in enumerate(st.session_state.output_state):
+        button_id = f"button_{index}"  # Unique ID for each button
+        if item["letter"] == "_":
+            columns[index].button(item["letter"], type="primary", key=button_id, disabled=True)
+        else:
+            if columns[index].button(item['letter'], key=button_id):
+                handle_output_button(index)
 
+def handle_output_button(index):
+    position = st.session_state.output_state[index]["index"]
+    print(st.session_state.output_state[index])
+    #st.session_state.input_state[index] = st.session_state.output_state[index]
+    st.session_state.input_state[position] = st.session_state.output_state[index]
+    st.session_state.output_state[index] = {"letter":"_", "index":0}
+    st.rerun()
+
+def count_underscores():
+    print(sum(1 for item in st.session_state.output_state if item["letter"] == "_"))
+    return sum(1 for item in st.session_state.output_state if item["letter"] == "_")  
 
 
 
