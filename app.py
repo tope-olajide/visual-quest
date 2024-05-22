@@ -1,10 +1,12 @@
+
 import json
 import string
 import random
 import streamlit as st
 import openai
 from PIL import Image
-import io, base64
+import io
+import base64
 
 # Initialize Snowflake connection
 conn = st.connection("snowflake")
@@ -15,47 +17,26 @@ open_ai_key = st.secrets["OPENAI_API_KEY"]
 openai.api_key = open_ai_key
 
 # Initialize session state variables
-if 'quest_solution' not in st.session_state:
-    st.session_state.quest_solution = ""
+session_state_defaults = {
+    "quest_solution": "",
+    "hint": "",
+    "is_fetching_quest": False,
+    "input_state": [],
+    "solution_with_random_letters": "",
+    "output_state": [],
+    "is_game_started": False,
+    "is_solution_found": False,
+    "is_hint_locked": True,
+    "coins": 1000,
+    "exclude_list": ['jump'],
+    "stage": 1,
+    "encouraging_words": [],
+    "category": "",
+}
 
-if 'hint' not in st.session_state:
-    st.session_state.hint = ""
-
-if 'is_fetching_quest' not in st.session_state:
-    st.session_state.is_fetching_quest = False
-
-if 'input_state' not in st.session_state:
-    st.session_state.input_state = []
-
-if 'solution_with_random_letters' not in st.session_state:
-    st.session_state.solution_with_random_letters = ""
-
-if 'output_state' not in st.session_state:
-    st.session_state.output_state = []
-
-if 'is_game_started' not in st.session_state:
-    st.session_state.is_game_started = False
-
-if 'is_solution_found' not in st.session_state:
-    st.session_state.is_solution_found = False
-
-if 'is_hint_locked' not in st.session_state:
-    st.session_state.is_hint_locked = True
-    
-if 'coins' not in st.session_state:
-    st.session_state.coins = 1000
-
-if 'exclude_list' not in st.session_state:
-    st.session_state.exclude_list = ['jump']
-    
-if 'stage' not in st.session_state:
-    st.session_state.stage = 1
-    
-if 'encouraging_word' not in st.session_state:
-    st.session_state.encouraging_words = []
-
-if 'category' not in st.session_state:
-    st.session_state.category = ""
+for key, value in session_state_defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
 def add_random_letters(target_length=12):
     num_random_letters = max(0, target_length - len(st.session_state.quest_solution))
@@ -71,7 +52,6 @@ def add_random_letters(target_length=12):
 def count_output_underscores():
     return sum(1 for item in st.session_state.output_state if item["letter"] == "_")
 
-
 def create_word_and_check(input_array):
     letters = [item["letter"] for item in input_array]
     word = "".join(letters)
@@ -85,7 +65,7 @@ def handle_input_button(letter, indexx):
             st.session_state.output_state[index] = {"letter": letter["letter"], "index": letter["index"]}
             create_word_and_check(st.session_state.output_state)
             break
-    st.rerun()  # Trigger rerun to immediately reflect state changes
+    st.rerun()  
 
 def render_input_buttons():
     num_buttons = len(st.session_state.input_state)
@@ -105,14 +85,13 @@ def render_input_buttons():
                     if columns[col_index].button(item["letter"], type="primary", key=button_id) and output_underscore_count != 0:
                         st.session_state.input_state[index] = {"letter": "_", "index": item["index"]}
                         handle_input_button(item, index)
-                        
+
 def handle_output_button(index):
     position = st.session_state.output_state[index]["index"]
-    #st.session_state.input_state[index] = st.session_state.output_state[index]
     st.session_state.input_state[position] = st.session_state.output_state[index]
-    st.session_state.output_state[index] = {"letter":"_", "index":0}
+    st.session_state.output_state[index] = {"letter": "_", "index": 0}
     st.rerun()
-    
+
 def render_output_buttons():
     columns = st.columns(len(st.session_state.output_state))
     for index, item in enumerate(st.session_state.output_state):
@@ -132,8 +111,8 @@ def render_solution_buttons():
 
 def prompt_quest():
     array_string = json.dumps(st.session_state.exclude_list)
-    prompt = f"Generate a random action verb or noun (4-7 letters) related to {st.session_state.catgegory}.  Avoid technical terms. Aim for tangible actions. The word must not be in this list: {array_string}. Provide a hint. Must be in JSON format with word and hint as keys."
-    cortex_prompt = "'[INST] " + prompt + " [/INST]'"
+    prompt = f"Generate a random action verb or noun (4-7 letters) related to {st.session_state.category}. Avoid technical terms. Aim for tangible actions. The word must not be in this list: {array_string}. Provide a hint. Must be in JSON format with word and hint as keys."
+    cortex_prompt = f"'[INST] {prompt} [/INST]'"
     print(prompt)
     cortex_response = session.sql(f"select snowflake.cortex.complete('snowflake-arctic', {cortex_prompt}) as response").to_pandas().iloc[0]['RESPONSE']
     data = json.loads(cortex_response)
@@ -144,7 +123,7 @@ def prompt_quest():
     st.session_state.hint = hint
     new_output_state = [{'letter': '_', 'index': i} for i in range(len(st.session_state.quest_solution))]
     st.session_state.output_state = new_output_state
-    print(f"#####{st.session_state.exclude_list}")
+    print(f"##### {st.session_state.exclude_list}")
     generate_image(word)
 
 def generate_image(word):
@@ -166,54 +145,46 @@ def start_game():
         prompt_quest()
         add_random_letters()
         st.session_state.is_game_started = True
-        st.session_state.encouraging_word = get_encouraging_word()
+        st.session_state.encouraging_words = get_encouraging_word()
         st.rerun()
-        
 
 def shuffle_input():
     s_list = list(st.session_state.solution_with_random_letters)
     random.shuffle(s_list)
-    shuffled_string = ''.join(s_list) 
+    shuffled_string = ''.join(s_list)
     new_output_state = [{'letter': '_', 'index': i} for i in range(len(st.session_state.quest_solution))]
     new_input_state = [{'letter': letter, 'index': i} for i, letter in enumerate(shuffled_string)]
     st.session_state.input_state = new_input_state
     st.session_state.output_state = new_output_state
     st.rerun()
 
-def unlock_hint ():
-    if st.session_state.coins < len(st.session_state.quest_solution)*50:
+def unlock_hint():
+    if st.session_state.coins < len(st.session_state.quest_solution) * 50:
         insufficient_fund()
-    else: sufficient_fund()
-        
+    else:
+        sufficient_fund()
+
 @st.experimental_dialog("Unlock hint")
 def insufficient_fund():
-    st.write(f"You do not have enough coins to unlock hint")
+    st.write("You do not have enough coins to unlock hint")
 
 @st.experimental_dialog("Unlock hint")
 def sufficient_fund():
     coins = len(st.session_state.quest_solution) * 50
     st.write(f"-{coins}🪙 will be deducted from your balance. Do you want to continue?")
     if st.button("Yes"):
-        st.session_state.coins = st.session_state.coins - coins
+        st.session_state.coins -= coins
         st.session_state.is_hint_locked = False
         st.rerun()
 
 def calculate_coins():
     coins = len(st.session_state.quest_solution) * 100
-    st.session_state.coins = st.session_state.coins + coins
+    st.session_state.coins += coins
 
 def get_encouraging_word():
     words = [
-        "Excellent",
-        "Very good",
-        "Awesome",
-        "Great job",
-        "Fantastic",
-        "Well done",
-        "Superb",
-        "Amazing",
-        "Brilliant",
-        "Outstanding"
+        "Excellent", "Very good", "Awesome", "Great job", "Fantastic",
+        "Well done", "Superb", "Amazing", "Brilliant", "Outstanding"
     ]
     return random.choice(words)
 
@@ -221,22 +192,21 @@ def get_encouraging_word():
 def display_settings():
     with st.container(border=True):
         option = st.selectbox(
-    "Choose a Category",
-    ("Travel and Adventure", "Sports and Fitness", "Arts and Entertainment", "Health and Wellness", "School and Learning" ))
-    st.session_state.catgegory = option
-    
-    
-    st.write("")
-    st.write("")
-    col1, col2, col3 = st.columns([2, 1.2, 2])
-    with col2:
+            "Choose a Category",
+            ("Travel and Adventure", "Sports and Fitness", "Arts and Entertainment", "Health and Wellness", "School and Learning")
+        )
+        st.session_state.category = option
+        st.write("")
+        st.write("")
+        col1, col2, col3 = st.columns([2, 1.2, 2])
+        with col2:
             if st.button('Save 💾'):
                 st.rerun()
 
 @st.experimental_dialog("How to play")
 def how_to_play():
     st.markdown("""
-    **How to Play: **
+    **How to Play:**
 
     🎮 **Step 1: Observe**
     - **🔍 Look Closely:** Each level presents four stunning images.
@@ -253,7 +223,6 @@ def how_to_play():
     🎮 **Step 4: Shuffle Letters**
     - **🔄 Fresh Perspective:** Shuffle letters to see them in a new way. A fresh arrangement can reveal the answer!
     """)
-
 
 @st.experimental_dialog("About VQ")
 def about_vq():
@@ -273,7 +242,6 @@ def about_vq():
     - **📚 Educational Fun:** Enhance your vocabulary and cognitive skills.
     - **🎉 Engaging Gameplay:** Perfect for quick breaks or long sessions.
     - **👨‍👩‍👧‍👦 Family-Friendly:** Fun for all ages.
-
     """)
 
 def main():
@@ -286,7 +254,7 @@ def main():
                 with col2:
                     with st.container(border=True):
                         if st.button('Play Game', type="primary"):
-                            start_game()     
+                            start_game()
                     with st.container(border=True):
                         if st.button("About 💁"):
                             about_vq()
@@ -305,55 +273,45 @@ def main():
                     with col1:
                         st.write(f"🪙{st.session_state.coins}")
                     with col3:
-                        st.write(f"stage: {st.session_state.stage}")
-                    
+                        st.write(f"Stage: {st.session_state.stage}")
                     with st.container(border=True):
                         render_output_buttons()
-                
                         st.image("quest-image.jpeg")
-                    
                         col1, col3 = st.columns([5.5, 3.1])
                         with col3:
                             if st.button("Shuffle"):
                                 shuffle_input()
                         with col1:
-                            if st.session_state.is_hint_locked == False:
+                            if not st.session_state.is_hint_locked:
                                 st.write(f"💡: {st.session_state.hint}")
                             else:
                                 if st.button("HINT?💡"):
                                     unlock_hint()
-                                
                     with st.container(border=True):
                         render_input_buttons()
-                    
-                       
-        if st.session_state.is_solution_found == True:
+        else:
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
                 with st.container(border=True):
                     col1, col2, col3 = st.columns([1, 2, 1])
                     with col2:
-                       
-                        st.subheader(F":rainbow[{st.session_state.encouraging_word}]!!")
+                        st.subheader(f":rainbow[{st.session_state.encouraging_words}]!!")
                     st.image("giphy.gif")
-                    
                     with st.container(border=True):
                         render_solution_buttons()
-                    st.write("")     
+                    st.write("")
                     col1, col2, col3 = st.columns([1, 0.7, 1])
                     with col1:
-                        st.subheader(f"+ {len(st.session_state.quest_solution)*100}🪙")
+                        st.subheader(f"+ {len(st.session_state.quest_solution) * 100}🪙")
                     with col3:
-                            
                         if st.button('Next Quest', key="Load_Next_Quest_Button", type="primary"):
                             st.session_state.is_solution_found = False
                             st.session_state.is_hint_locked = True
-                            st.session_state.stage = st.session_state.stage + 1
+                            st.session_state.stage += 1
                             start_game()
                             st.rerun()
-                        st.write("")    
-                        st.write("")    
-                        
-                    
+                        st.write("")
+                        st.write("")
+
 if __name__ == "__main__":
     main()
