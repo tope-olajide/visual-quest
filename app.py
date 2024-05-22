@@ -246,11 +246,11 @@ def about_vq():
 
 def main():
     if not st.session_state.is_game_started:
-        col1, col2, col3 = st.columns([1, 1.1, 1])
+        col1, col2, col3 = st.columns([1, 1.3, 1])
         with col2:
             st.title('_Visual_ :blue[Quest]')
             with st.container(border=True):
-                col1, col2, col3 = st.columns([1, 5, 1])
+                col1, col2, col3 = st.columns([1, 4, 1])
                 with col2:
                     with st.container(border=True):
                         if st.button('Play Game', type="primary"):
@@ -266,7 +266,7 @@ def main():
                             how_to_play()
     else:
         if not st.session_state.is_solution_found:
-            col1, col2, col3 = st.columns([1, 1.5, 1])
+            col1, col2, col3 = st.columns([1, 3, 1])
             with col2:
                 with st.container(border=True):
                     col1, col2, col3 = st.columns([1, 2, 1])
