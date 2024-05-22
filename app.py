@@ -50,6 +50,12 @@ if 'exclude_list' not in st.session_state:
     
 if 'stage' not in st.session_state:
     st.session_state.stage = 1
+    
+if 'encouraging_word' not in st.session_state:
+    st.session_state.encouraging_words = []
+
+if 'category' not in st.session_state:
+    st.session_state.category = ""
 
 def add_random_letters(target_length=12):
     num_random_letters = max(0, target_length - len(st.session_state.quest_solution))
@@ -65,9 +71,6 @@ def add_random_letters(target_length=12):
 def count_output_underscores():
     return sum(1 for item in st.session_state.output_state if item["letter"] == "_")
 
-@st.experimental_dialog("Brilliant")
-def correct_modal():
-    st.write("Very Good")
 
 def create_word_and_check(input_array):
     letters = [item["letter"] for item in input_array]
@@ -129,8 +132,7 @@ def render_solution_buttons():
 
 def prompt_quest():
     array_string = json.dumps(st.session_state.exclude_list)
-    
-    prompt = f"Generate a random action verb or noun (4-7 letters) related to Health and Wellness. Examples include Rest, Breathe, Peace etc. Avoid technical terms. Aim for tangible actions. The word must not be in this list: {array_string}. Provide a hint. Must be in JSON format with word and hint as keys."
+    prompt = f"Generate a random action verb or noun (4-7 letters) related to {st.session_state.catgegory}.  Avoid technical terms. Aim for tangible actions. The word must not be in this list: {array_string}. Provide a hint. Must be in JSON format with word and hint as keys."
     cortex_prompt = "'[INST] " + prompt + " [/INST]'"
     print(prompt)
     cortex_response = session.sql(f"select snowflake.cortex.complete('snowflake-arctic', {cortex_prompt}) as response").to_pandas().iloc[0]['RESPONSE']
@@ -160,10 +162,11 @@ def generate_image(word):
     st.session_state.is_fetching_quest = False
 
 def start_game():
-    with st.spinner('Wait for it...'):
+    with st.spinner('Loading...'):
         prompt_quest()
         add_random_letters()
         st.session_state.is_game_started = True
+        st.session_state.encouraging_word = get_encouraging_word()
         st.rerun()
         
 
@@ -220,6 +223,9 @@ def display_settings():
         option = st.selectbox(
     "Choose a Category",
     ("Travel and Adventure", "Sports and Fitness", "Arts and Entertainment", "Health and Wellness", "School and Learning" ))
+    st.session_state.catgegory = option
+    
+    
     st.write("")
     st.write("")
     col1, col2, col3 = st.columns([2, 1.2, 2])
@@ -227,6 +233,48 @@ def display_settings():
             if st.button('Save 💾'):
                 st.rerun()
 
+@st.experimental_dialog("How to play")
+def how_to_play():
+    st.markdown("""
+    **How to Play: **
+
+    🎮 **Step 1: Observe**
+    - **🔍 Look Closely:** Each level presents four stunning images.
+    - **🌟 Spot the Connection:** Find the common theme!
+
+    🎮 **Step 2: Guess**
+    - **🧠 Form the Word:** Use the letters to guess the hidden word.
+    - **🔠 Tap Away:** Tap letters to form your word. Mistakes? Letters reset for another try.
+
+    🎮 **Step 3: Use Hints**
+    - **💡 Stuck? No Problem!** Tap hints to reveal letters or remove unnecessary ones.
+    - **🎯 Strategize:** Use hints wisely to conquer tough puzzles.
+
+    🎮 **Step 4: Shuffle Letters**
+    - **🔄 Fresh Perspective:** Shuffle letters to see them in a new way. A fresh arrangement can reveal the answer!
+    """)
+
+
+@st.experimental_dialog("About VQ")
+def about_vq():
+    st.markdown("""
+    **About Visual Quest**
+
+    🌟 **Welcome to Visual Quest!**
+
+    Dive into an addictive word-guessing game that challenges your puzzle-solving skills and sharpens your mind. Explore hundreds of levels filled with beautiful image collages, each hiding a word that connects all four pictures.
+
+    **Game Features:**
+    - **🧩 Hundreds of Levels:** Keep your brain buzzing with endless puzzles.
+    - **🖼️ Beautiful Collages:** Enjoy high-quality images with each level.
+    - **💡 Hints and Shuffles:** Use hints to reveal letters and shuffle for a fresh perspective.
+
+    **Why You'll Love It:**
+    - **📚 Educational Fun:** Enhance your vocabulary and cognitive skills.
+    - **🎉 Engaging Gameplay:** Perfect for quick breaks or long sessions.
+    - **👨‍👩‍👧‍👦 Family-Friendly:** Fun for all ages.
+
+    """)
 
 def main():
     if not st.session_state.is_game_started:
@@ -241,13 +289,13 @@ def main():
                             start_game()     
                     with st.container(border=True):
                         if st.button("About 💁"):
-                            pass
+                            about_vq()
                     with st.container(border=True):
                         if st.button("Settings ⚙"):
                             display_settings()
                     with st.container(border=True):
                         if st.button("How To Play", type="primary"):
-                            pass
+                            how_to_play()
     else:
         if not st.session_state.is_solution_found:
             col1, col2, col3 = st.columns([1, 1.5, 1])
@@ -278,31 +326,32 @@ def main():
                     with st.container(border=True):
                         render_input_buttons()
                     
-                        
+                       
         if st.session_state.is_solution_found == True:
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
                 with st.container(border=True):
-                    col1, col2, col3 = st.columns([1, 3, 1])
+                    col1, col2, col3 = st.columns([1, 2, 1])
                     with col2:
-                        encouraging_word = get_encouraging_word()
-                        st.subheader(F":rainbow[{encouraging_word.upper()}]!!")
+                       
+                        st.subheader(F":rainbow[{st.session_state.encouraging_word}]!!")
                     st.image("giphy.gif")
                     
                     with st.container(border=True):
                         render_solution_buttons()
-                    col1, col2, col3 = st.columns([1, 2, 1])
-                    with col2:
+                    st.write("")     
+                    col1, col2, col3 = st.columns([1, 0.7, 1])
+                    with col1:
                         st.subheader(f"+ {len(st.session_state.quest_solution)*100}🪙")
-                         
-                        
-                        with col2:    
-                                if st.button('Next Quest', key="Load_Next_Quest_Button", type="primary"):
-                                    st.session_state.is_solution_found = False
-                                    st.session_state.is_hint_locked = True
-                                    st.session_state.stage = st.session_state.stage + 1
-                                    start_game()
-                                    st.rerun()
+                    with col3:
+                            
+                        if st.button('Next Quest', key="Load_Next_Quest_Button", type="primary"):
+                            st.session_state.is_solution_found = False
+                            st.session_state.is_hint_locked = True
+                            st.session_state.stage = st.session_state.stage + 1
+                            start_game()
+                            st.rerun()
+                        st.write("")    
                         st.write("")    
                         
                     
