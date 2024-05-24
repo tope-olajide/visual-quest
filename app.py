@@ -113,7 +113,6 @@ def prompt_quest():
     array_string = json.dumps(st.session_state.exclude_list)
     prompt = f"Generate a random action verb or noun (4-7 letters) related to {st.session_state.category}. Avoid technical terms. Aim for tangible actions. The word must not be in this list: {array_string}. Provide a hint. Must be in JSON format with word and hint as keys."
     cortex_prompt = f"'[INST] {prompt} [/INST]'"
-    print(prompt)
     cortex_response = session.sql(f"select snowflake.cortex.complete('snowflake-arctic', {cortex_prompt}) as response").to_pandas().iloc[0]['RESPONSE']
     data = json.loads(cortex_response)
     word = data['word']
@@ -214,7 +213,7 @@ def how_to_play():
 
     🎮 **Step 2: Guess**
     - **🧠 Form the Word:** Use the letters to guess the hidden word.
-    - **🔠 Tap Away:** Tap letters to form your word. Mistakes? Letters reset for another try.
+    - **🔠 Tap Away:** Tap letters to form your word. Mistakes? Tap the letter to return it back to it original position.
 
     🎮 **Step 3: Use Hints**
     - **💡 Stuck? No Problem!** Tap hints to reveal letters or remove unnecessary ones.
@@ -222,6 +221,11 @@ def how_to_play():
 
     🎮 **Step 4: Shuffle Letters**
     - **🔄 Fresh Perspective:** Shuffle letters to see them in a new way. A fresh arrangement can reveal the answer!
+    
+    For the best experience, switch your screen orientation to landscape mode on your mobile device.
+
+    
+    Enjoy!
     """)
 
 @st.experimental_dialog("About VQ")
@@ -243,6 +247,7 @@ def about_vq():
     - **🎉 Engaging Gameplay:** Perfect for quick breaks or long sessions.
     - **👨‍👩‍👧‍👦 Family-Friendly:** Fun for all ages.
     """)
+
 
 def main():
     if not st.session_state.is_game_started:
@@ -276,7 +281,8 @@ def main():
                         st.write(f"Stage: {st.session_state.stage}")
                     with st.container(border=True):
                         render_output_buttons()
-                        st.image("quest-image.jpeg")
+                        with st.expander("Quest Image", expanded=True):
+                            st.image("quest-image.jpeg")
                         col1, col3 = st.columns([5.5, 3.1])
                         with col3:
                             if st.button("Shuffle"):
@@ -287,7 +293,7 @@ def main():
                             else:
                                 if st.button("HINT?💡"):
                                     unlock_hint()
-                    with st.container(border=True):
+                    with st.container():
                         render_input_buttons()
         else:
             col1, col2, col3 = st.columns([1, 2, 1])
