@@ -192,7 +192,7 @@ def display_settings():
     with st.container(border=True):
         option = st.selectbox(
             "Choose a Category",
-            ("Travel and Adventure", "Sports and Fitness", "Arts and Entertainment", "Health and Wellness", "School and Learning")
+            ("Travel and Adventure", "Sports and Fitness", "Arts and Entertainment", "Health and Wellness", "School and Learning","Food and Cooking", "Nature and Environment", "History and Culture", "Animals and Pets", "Mythology and Folklore")
         )
         st.session_state.category = option
         st.write("")
@@ -318,6 +318,7 @@ def main():
                             st.rerun()
                         st.write("")
                         st.write("")
+                        st.balloons()
 
 if __name__ == "__main__":
     main()
